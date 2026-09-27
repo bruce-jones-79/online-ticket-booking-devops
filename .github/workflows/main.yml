@@ -1,0 +1,61 @@
+name: Promote Booking Application to TEST
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run automated tests
+        run: pytest -q
+
+  build-and-promote-test:
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: TEST
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Build TEST container
+        run: docker build -t booking-api:test .
+
+      - name: Start TEST container
+        run: |
+          docker run -d --name booking-api-test \
+            -e APP_ENV=TEST \
+            -p 5001:5000 \
+            booking-api:test
+
+      - name: Run TEST health check
+        run: |
+          for i in {1..10}; do
+            if curl -fsS http://localhost:5001/health; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs booking-api-test
+          exit 1
+
+      - name: TEST promotion record
+        run: |
+          echo "Application promoted to TEST after validation and health check."
+          echo "Commit: $GITHUB_SHA"
+          echo "Environment: TEST"
