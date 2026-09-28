@@ -1,0 +1,14 @@
+services:
+  booking-api-test:
+    build: .
+    container_name: booking-api-test
+    environment:
+      APP_ENV: TEST
+      DB_PATH: /data/booking.db
+    ports:
+      - "5001:5000"
+    volumes:
+      - test_data:/data
+
+volumes:
+  test_data:
